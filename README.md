@@ -1,111 +1,195 @@
-# autoresearch
+Skip to content
+mcclxxxix
+autoresearch-principlex
+Repository navigation
+Code
+Issues
+Pull requests
+Actions
+Projects
+Wiki
+Security
+Insights
+Settings
+Owner avatar
+autoresearch-principlex
+Public
+mcclxxxix/autoresearch-principlex
+Go to file
+t
+Name		
+mcclxxxix
+mcclxxxix
+Add files via upload
+98d5331
+ · 
+11 minutes ago
+LICENSE
+Initial commit
+8 hours ago
+README.md
+Update README by removing iframe and modifying links
+6 hours ago
+program-plx.md
+Add files via upload
+11 minutes ago
+Repository files navigation
+README
+MIT license
+autoresearch-principlex
+Don't just find improvements. Know which ones will survive.
 
-> Convert your gaming PC into an autonomous AI researcher.
+This repository is a fork of jsegov/autoresearch-win-rtx, which is itself a fork of karpathy/autoresearch. The purpose of this fork is to add a minimal interpretability constraint — one bit per commit — that filters out improvements which won't transfer across scales.
 
-> This repository is a fork of [karpathy/autoresearch](https://github.com/karpathy/autoresearch). The purpose of this fork is native support for desktop consumer NVIDIA GPUs on Windows, with tiered VRAM floors by architecture.
+progress
 
-![teaser](progress.png)
+The agents claim that we are now in the 10,205th generation of the code base, in any case no one could tell if that's right or wrong as the "code" is now a self-modifying binary that has grown beyond human comprehension. — @karpathy, March 2026.
 
-*One day, frontier AI research used to be done by meat computers in between eating, sleeping, having other fun, and synchronizing once in a while using sound wave interconnect in the ritual of "group meeting". That era is long gone. Research is now entirely the domain of autonomous swarms of AI agents running across compute cluster megastructures in the skies. The agents claim that we are now in the 10,205th generation of the code base, in any case no one could tell if that's right or wrong as the "code" is now a self-modifying binary that has grown beyond human comprehension. This repo is the story of how it all began. -@karpathy, March 2026*.
+The question Principlex asks: can we make comprehension scale alongside capability, before generation 10,205 arrives?
 
-The idea: give an AI agent a small but real LLM training setup and let it experiment autonomously overnight. It modifies the code, trains for 5 minutes, checks if the result improved, keeps or discards, and repeats. You wake up in the morning to a log of experiments and (hopefully) a better model. The training code here is a simplified single-GPU implementation of [nanochat](https://github.com/karpathy/nanochat). The core idea is that you're not touching any of the Python files like you normally would as a researcher. Instead, you are programming the `program.md` Markdown files that provide context to the AI agents and set up your autonomous research org. The default `program.md` in this repo is intentionally kept as a bare bones baseline, though it's obvious how one would iterate on it over time to find the "research org code" that achieves the fastest research progress, how you'd add more agents to the mix, etc. A bit more context on this project is here in this [tweet](https://x.com/karpathy/status/2029701092347630069).
+The problem
+Autoresearch generates ~100 experiments overnight. Most are discarded. The keepers improve val_bpb but nobody knows why. The experiment log is two columns of DISCARDED entries, a handful of kept improvements, and no way to know why the kept ones worked except that the number went down. Improvements transfer from d12 to d24, but nobody can say which will transfer to d96, or to a different dataset, or to a different architecture, without re-running the whole search.
 
-## Fork scope
+The bet
+A single structural diagnostic — residual stream direction norms collapsed to a Gini coefficient — is enough to separate factored improvements from patchwork. Factored improvements transfer. Patchwork doesn't. This costs ~5% overhead per experiment.
 
-- Upstream source: [karpathy/autoresearch](https://github.com/karpathy/autoresearch)
-- Primary objective: run natively on Windows with desktop consumer NVIDIA GPUs (Turing with >=8 GB VRAM, Ampere/Ada/Blackwell with >=10 GB VRAM), without unofficial Triton-on-Windows stacks.
-- Scope of changes: compatibility and stability updates required for that target platform.
-- The original Linux/H100-oriented path from upstream is removed in this fork and is not supported here.
-- If you need the upstream Linux/H100 path, use [karpathy/autoresearch](https://github.com/karpathy/autoresearch).
+What Principlex adds
+One file: program-plx.md replaces program.md with a five-step experiment loop:
 
-## How it works
+Hypothesis — write what you expect and why, before touching code.
+Implement — edit train.py. One idea per experiment.
+Run — 5-minute fixed time budget, same as upstream.
+One-bit gate — render directional colors (residual stream L2 norms), compute Gini coefficient. Gini < 0.45 → factored → commit_bit = 1. Gini > 0.55 → patchwork → commit_bit = 0.
+Decide — improved val_bpb AND bit = 1 → commit. Improved val_bpb AND bit = 0 → shelve. Worse val_bpb → revert.
+Zeros get shelved, not discarded. They stay on branches for future investigation. But they don't pollute the main line.
 
-The repo is deliberately kept small and only really has a three files that matter:
+The three-file simplicity is preserved. The agent still only touches train.py. The diagnostic snippet lives inside train.py at the end of training. No new Python files.
 
-- **`prepare.py`** — fixed constants, one-time data prep (downloads TinyStories data, trains a BPE tokenizer), and runtime utilities (dataloader, evaluation).
-- **`train.py`** — the single file the agent edits. Contains the full GPT model, optimizer (Muon + AdamW), and training loop. Everything is fair game: architecture, hyperparameters, optimizer, batch size, etc. **This file is edited and iterated on by the agent**.
-- **`program.md`** — baseline instructions for one agent. Point your agent here and let it go. **This file is edited and iterated on by the human**.
+Fork scope
+Upstream source: jsegov/autoresearch-win-rtx → karpathy/autoresearch
+Primary objective: add a minimal interpretability gate to the autonomous research loop.
+Scope of changes: program-plx.md (agent instructions), diagnostic snippet in train.py, cluster tooling.
+Platform support: inherits jsegov's consumer GPU support (Turing >=8 GB, Ampere/Ada/Blackwell >=10 GB) plus SLURM cluster support for multi-agent runs.
+All upstream compatibility and design choices remain intact.
+How it works
+Four files matter (three from upstream + one new):
 
-By design, training runs for a **fixed 5-minute time budget** (wall clock, excluding startup/compilation), regardless of the details of your compute. The metric is **val_bpb** (validation bits per byte) — lower is better, and vocab-size-independent so architectural changes are fairly compared.
+prepare.py — fixed constants, one-time data prep, runtime utilities. Do not modify.
+train.py — the single file the agent edits. Model, optimizer, training loop, and the Principlex diagnostic hook at the end. This file is edited and iterated on by the agent.
+program-plx.md — Principlex agent instructions. The one-bit gate, the hypothesis-first loop, the shelving policy. This file is edited and iterated on by the human. Drop-in replacement for program.md.
+plx-cluster.sh — SLURM script for running multiple agents in parallel on a GPU cluster. Optional. Not needed for single-GPU use.
+The metric is still val_bpb (validation bits per byte) — lower is better. Principlex adds a second signal: commit_bit — 1 means factored, 0 means patchwork. Both are logged to results.tsv.
 
-## Quick start (PowerShell)
+Quick start (single GPU)
+Requirements: A single NVIDIA GPU (consumer desktop or datacenter), Python 3.10+, uv.
 
-**Requirements:** A single NVIDIA GPU, Python 3.10+, [uv](https://docs.astral.sh/uv/).
-
-- Single runtime path uses PyTorch SDPA attention and eager execution (no FA3/`torch.compile` fast path).
-- Native Windows support targets desktop consumer GPUs with a tiered VRAM policy (Turing >=8 GB, Ampere/Ada/Blackwell >=10 GB), official PyTorch CUDA wheels, and SDPA attention.
-- Default dataset is now TinyStories GPT-4 clean for practical consumer-GPU setup.
-
-```powershell
-
-# 1. Install uv project manager (if you don't already have it)
+# 1. Install uv
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 # 2. Install dependencies
 uv sync
 
 # 3. Download data and train tokenizer (one-time)
-#    Default dataset: TinyStories GPT-4 clean
 uv run prepare.py
 
-# 4. Manually run a single training experiment (~5 min)
+# 4. Run a single training experiment (~5 min)
 uv run train.py
-```
 
-Quick validation run (recommended after setup):
+# 5. Verify the Principlex diagnostic fires
+grep "principlex_gini" run.log
+Quick start (Linux / cluster)
+# 1. Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-```powershell
-uv run train.py --smoke-test
-```
+# 2. Setup
+uv sync
+uv run prepare.py
 
-If the above commands all work ok, your setup is working and you can go into autonomous research mode.
+# 3. Single agent
+uv run train.py
 
-## Running the agent
+# 4. Multi-agent on SLURM (e.g., 4 agents on 4 GPUs)
+chmod +x plx-cluster.sh
+./plx-cluster.sh --agents 4 --phase 2
+Running the agent
+Spin up Claude Code, Codex, or any coding agent in this repo, then prompt:
 
-Simply spin up your Claude/Codex or whatever you want in this repo (and disable all permissions), then you can prompt something like:
+Read program-plx.md and let's kick off a new Principlex experiment. Do the setup first.
+The agent will create a branch, initialize results tracking, and begin the hypothesis → implement → run → gate → decide loop.
 
-```
-Hi have a look at program.md and let's kick off a new experiment! let's do the setup first.
-```
+Multi-agent cluster mode
+plx-cluster.sh handles SLURM submission for parallel agents. Each agent gets its own git branch and working copy. Coordination is file-based: agents write results to a shared directory and read each other's logs to avoid duplicate experiments.
 
-The `program.md` file is essentially a super lightweight "skill".
+# Launch 8 agents for overnight run (Phase 2 = one-bit gate active)
+./plx-cluster.sh --agents 8 --phase 2 --time 08:00:00
 
-## Project structure
+# Monitor
+squeue -u $USER
+tail -f ~/principlex-shared/logs/agent-01-*.out
 
-```
-prepare.py      — constants, data prep + runtime utilities (do not modify)
-train.py        — model, optimizer, training loop (agent modifies this)
-program.md      — agent instructions
-pyproject.toml  — dependencies
-```
+# Aggregate results when done
+bash ~/principlex-shared/plx-aggregate.sh ~/principlex-shared
+Phases:
 
-## Design choices
+Phase 1 — Baseline. No gate. Runs original autoresearch loop for comparison data.
+Phase 2 — Gated. One-bit gate active. Standard Principlex operation.
+Phase 4 — Scale ladder. Agents at d12/d24/d48/d96 with automatic promotion of surviving changes across scales.
+The one-bit gate, explained
+Why one bit? Because factored structure and comprehensibility aren't independent properties — they're the same thing measured at different levels. That's the core insight from PicBreeder research: NEAT-evolved CPPNs develop organized, inspectable internal circuitry while SGD-trained networks producing the same outputs develop disorganized patchwork. Same capability, radically different comprehensibility. The organization is the legibility.
 
-- **Single file to modify.** The agent only touches `train.py`. This keeps the scope manageable and diffs reviewable.
-- **Fixed time budget.** Training always runs for exactly 5 minutes, regardless of your specific platform. This means you can expect approx 12 experiments/hour and approx 100 experiments while you sleep. There are two upsides of this design decision. First, this makes experiments directly comparable regardless of what the agent changes (model size, batch size, architecture, etc). Second, this means that autoresearch will find the most optimal model for your platform in that time budget. The downside is that your runs (and results) become not comparable to other people running on other compute platforms.
-- **Self-contained.** No external dependencies beyond PyTorch and a few small packages. No distributed training, no complex configs. One GPU, one file, one metric.
+Two axes collapse to one bit. Factored or not. Transfers or doesn't.
 
-## Platform support
+The diagnostic: hook the residual stream at each transformer block, capture L2 norms per position, compute the Gini coefficient across all layers. A factored model distributes activation mass evenly (low Gini). A patchwork model concentrates it in hot clusters (high Gini). Low Gini correlates with cross-scale transfer. High Gini correlates with improvements that vanish at larger scales.
 
-This fork's platform policy is explicit and tiered.
+Cost
+Baseline autoresearch	Full Principlex (4 roots)	One-Bit Principlex
+Overhead	0%	10–20%	~5%
+Descriptors	None	Engram + Cuneiform + Dir. Colors + Tab2Visual	1 bit + optional engram
+Transfer signal	None (re-run everything)	High (expensive)	High (cheap)
+On a consumer GPU at 12 experiments/hour, the one-bit gate costs you roughly 1 experiment slot per cycle. You drop from ~12 to ~10–11 experiments/hour. That's the concrete cost of knowing which improvements will survive.
 
-| Architecture | Minimum VRAM floor | Supported desktop consumer GPUs |
-| --- | --- | --- |
-| Turing | `>=8 GB` | `RTX 2060 12GB`, `RTX 2060 SUPER 8GB`, `RTX 2070 8GB`, `RTX 2070 SUPER 8GB`, `RTX 2080 8GB`, `RTX 2080 SUPER 8GB`, `RTX 2080 Ti 11GB` |
-| Ampere | `>=10 GB` | `RTX 3060 12GB`, `RTX 3080 10GB`, `RTX 3080 12GB`, `RTX 3080 Ti 12GB`, `RTX 3090 24GB`, `RTX 3090 Ti 24GB` |
-| Ada | `>=10 GB` | `RTX 4060 Ti 16GB`, `RTX 4070 12GB`, `RTX 4070 SUPER 12GB`, `RTX 4070 Ti 12GB`, `RTX 4070 Ti SUPER 16GB`, `RTX 4080 16GB`, `RTX 4080 SUPER 16GB`, `RTX 4090 24GB` |
-| Blackwell | `>=10 GB` | `RTX 5060 Ti 16GB`, `RTX 5070 12GB`, `RTX 5070 Ti 16GB`, `RTX 5080 16GB`, `RTX 5090 32GB` |
-- Desktop only: laptop GPUs are not officially supported due to wide power and thermal variance.
-- Floor policy: Turing desktop GPUs are supported at >=8 GB VRAM; Ampere/Ada/Blackwell desktop GPUs require >=10 GB VRAM.
-- `RTX 2060 6GB` remains out of matrix support due to VRAM floor.
-- Runtime path is intentionally unified across platforms: PyTorch SDPA attention + eager optimizer steps.
-- Runtime adaptation is profile-driven: compute capability, BF16/TF32 support, OS, and VRAM tier determine candidate batch sizes and checkpointing strategy.
-- Supported consumer profiles run a short eager-mode autotune pass and cache the selected candidate per GPU/runtime fingerprint.
-- Autotune env controls: `AUTORESEARCH_DISABLE_AUTOTUNE=1` skips probing; `AUTORESEARCH_AUTOTUNE_REFRESH=1` refreshes the cached decision.
-- Tested hardware in this repo remains RTX 3080 10 GB on Windows. Other listed SKUs are matrix-supported but may be less field-tested here.
-- Non-goals for this fork include FA3/H100-specialized paths, unofficial Triton-for-Windows stacks, AMD/ROCm, Apple Metal, and multi-GPU training.
-- Default dataset is `karpathy/tinystories_gpt4_clean` for consumer-GPU practicality.
+Project structure
+prepare.py        — constants, data prep + runtime utilities (do not modify)
+train.py          — model, optimizer, training loop + diagnostic hook (agent modifies this)
+program-plx.md    — Principlex agent instructions (human modifies this)
+program.md        — original baseline instructions (kept for reference)
+plx-cluster.sh    — SLURM multi-agent launcher (optional)
+AGENDA.md         — 10-week research plan for systematic validation
+principlex.html   — interactive demo of the network and strategy
+pyproject.toml    — dependencies
+Design choices
+Everything from upstream applies, plus:
 
-## License
+One bit, not four roots. The original Principlex proposal (#226 on autoresearch) had four visualization requirements: Engrams, Cuneiform, Directional Colors, Tab2Visual. That's too much descriptor for a binary signal. This fork uses one: directional colors collapsed to a scalar Gini coefficient. One bit per commit.
+Shelved ≠ deleted. Patchwork improvements are real at the current scale. They're kept on branches and logged. They just don't merge to main. If the gate is later found to be too strict, shelved experiments can be recovered.
+File-based coordination. Multi-agent mode uses no databases, no coordination servers, no APIs. Just a shared filesystem and git. This runs anywhere SLURM runs.
+Diagnostic inside train.py. The residual stream hook is a few lines of Python appended to the end of training. No separate analysis scripts. Three-file simplicity is preserved.
+Platform support
+Inherits the full platform matrix from jsegov/autoresearch-win-rtx:
 
-MIT
+Architecture	Min VRAM	Example GPUs
+Turing	>=8 GB	RTX 2060 12GB, RTX 2070, RTX 2080 Ti
+Ampere	>=10 GB	RTX 3060 12GB, RTX 3080, RTX 3090
+Ada	>=10 GB	RTX 4070, RTX 4080, RTX 4090
+Blackwell	>=10 GB	RTX 5070, RTX 5080, RTX 5090
+Datacenter	any	H100, H200, A100 (via SLURM cluster mode)
+Runtime path: PyTorch SDPA attention + eager optimizer steps. No FA3, no torch.compile.
+
+Related work
+karpathy/autoresearch — the original
+jsegov/autoresearch-win-rtx — Windows/consumer GPU fork (direct upstream)
+miolini/autoresearch-macos — macOS fork
+trevin-creator/autoresearch-mlx — Apple Silicon MLX fork
+mutable-state-inc/autoresearch-at-home — SETI@home-style collaborative fork
+Principlex #226 on karpathy/autoresearch — the original proposal by McClurkin https://specialtyconsultants.co/autoresearch/
+License
+MIT. Credits autoresearch (karpathy) and autoresearch-win-rtx (jsegov) as upstream.
+
+About
+Zurada experiment
+
+Resources
+ Readme
+License
+ MIT license
+
