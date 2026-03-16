@@ -1,41 +1,3 @@
-Skip to content
-mcclxxxix
-autoresearch-principlex
-Repository navigation
-Code
-Issues
-Pull requests
-Actions
-Projects
-Wiki
-Security
-Insights
-Settings
-Owner avatar
-autoresearch-principlex
-Public
-mcclxxxix/autoresearch-principlex
-Go to file
-t
-Name		
-mcclxxxix
-mcclxxxix
-Add files via upload
-98d5331
- · 
-11 minutes ago
-LICENSE
-Initial commit
-8 hours ago
-README.md
-Update README by removing iframe and modifying links
-6 hours ago
-program-plx.md
-Add files via upload
-11 minutes ago
-Repository files navigation
-README
-MIT license
 autoresearch-principlex
 Don't just find improvements. Know which ones will survive.
 
@@ -184,12 +146,3 @@ mutable-state-inc/autoresearch-at-home — SETI@home-style collaborative fork
 Principlex #226 on karpathy/autoresearch — the original proposal by McClurkin https://specialtyconsultants.co/autoresearch/
 License
 MIT. Credits autoresearch (karpathy) and autoresearch-win-rtx (jsegov) as upstream.
-
-About
-Zurada experiment
-
-Resources
- Readme
-License
- MIT license
-
